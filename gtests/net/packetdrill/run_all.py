@@ -46,6 +46,8 @@ class TestSet(object):
     cmd.extend(self.default_args.split())
     if extra_args is not None:
       cmd.extend(extra_args.split())
+    if self.args['extra_args']:
+      cmd.extend(self.args['extra_args'])
     cmd.append(basename)
 
     outfile = tempfile.TemporaryFile(mode='w+')
@@ -231,7 +233,6 @@ class ParallelTestSet(object):
 def ParseArgs():
   """Parse commandline arguments."""
   args = argparse.ArgumentParser()
-  args.add_argument('path', default='.', nargs='?')
   args.add_argument('-l', '--log_on_error', action='store_true',
                     help='requires verbose')
   args.add_argument('-L', '--log_on_success', action='store_true',
@@ -240,6 +241,12 @@ def ParseArgs():
   args.add_argument('-s', '--subdirs', action='store_true')
   args.add_argument('-S', '--serialized', action='store_true')
   args.add_argument('-v', '--verbose', action='store_true')
+  args.add_argument('path', default='.', nargs='?')
+  args.add_argument(
+      "extra_args",
+      nargs=argparse.REMAINDER,
+      help="extra arguments for all packetdrill subprocesses"
+  )
   return vars(args.parse_args())
 
 
