@@ -1,0 +1,53 @@
+// check mtu probing can fill jumbo frames
+// binary-search between 1000 and 9000 for more readable arithmethic
+
+// enforce strict segment checking (and turn off gso) to measure probe length
+--strict_segments
+
+// configure a small initial mtu
+// increase cwnd to the minimum tcp_mtu_probe needs
+`../common/defaults.sh
+ ../common/set_sysctls.py \
+	/proc/sys/net/ipv4/tcp_mtu_probing=2 \
+	/proc/sys/net/ipv4/tcp_base_mss=1000
+ ip route change 192.0.2.1 via 192.168.0.2 dev tun0 advmss 1000 mtu lock 1040 initcwnd 11
+ ethtool -K tun0 gso off tso off
+`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+  +.1 < S  0:0(0) win 50000 <mss 9000,nop,wscale 0>
+   +0 > S. 0:0(0) ack 1 win 65535 <mss 1000,nop,wscale 8>
+   +0 < .  1:1(0) ack 1 win 50000
+  +.1 accept(3, ..., ...) = 4
+
+   +0 `ip route change 192.0.2.1 via 192.168.0.2 dev tun0 advmss 9000 mtu lock 9040`
+
+  +.1 write(4, ..., 10000) = 10000
+   +0 > .  1:5001(5000) ack 1
+   +0 > .  5001:6001(1000) ack 1
+   +0 > .  6001:7001(1000) ack 1
+   +0 > .  7001:8001(1000) ack 1
+   +0 > .  8001:9001(1000) ack 1
+   +0 > P. 9001:10001(1000) ack 1
+   +0 < .  1:1(0) ack 10001 win 50000
+
+// Probes on successive writes do not happen?
+  +.1 write(4, ..., 10000) = 10000
+   +0 > .  10001:15001(5000) ack 1
+   +0 > P. 15001:20001(5000) ack 1
+   +0 < .  1:1(0) ack 20001 win 50000
+
+  +.1 write(4, ..., 30000) = 30000
+   +0 > .  20001:27001(7000) ack 1
+   +0 > .  27001:32001(5000) ack 1
+   +0 > .  32001:37001(5000) ack 1
+   +0 > .  37001:42001(5000) ack 1
+   +0 > .  42001:47001(5000) ack 1
+   +0 > P. 47001:50001(3000) ack 1
+   +0 < .  1:1(0) ack 50001 win 50000
+
+`/tmp/sysctl_restore_${PPID}.sh`
