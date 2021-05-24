@@ -64,6 +64,8 @@ static void run_init_scripts(struct config *config)
 int main(int argc, char *argv[])
 {
 	struct config config;
+	setvbuf(stderr, NULL, _IONBF, 0);
+	setvbuf(stdout, NULL, _IONBF, 0);
 	set_default_config(&config);
 	/* Get command line options and list of test scripts. */
 	char **arg = parse_command_line_options(argc, argv, &config);
