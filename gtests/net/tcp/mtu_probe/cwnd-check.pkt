@@ -1,0 +1,46 @@
+// check mtu probing can fill jumbo frames
+// binary-search between 1000 and 9000 for more readable arithmethic
+
+// enforce strict segment checking (and turn off gso) to measure probe length
+--strict_segments
+
+// configure a small initial mtu
+// increase cwnd to the minimum tcp_mtu_probe needs
+`../common/defaults.sh
+ ../common/set_sysctls.py \
+	/proc/sys/net/ipv4/tcp_timestamps=0
+ ethtool -K tun0 gso off tso off
+`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+  +.08...0.180 connect(3, ..., ...) = 0
+
+   +0 > S  0:0(0) win 65535 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < S. 0:0(0) ack 1 win 50000 <mss 1000,nop,wscale 0>
+   +0 > .  1:1(0) ack 1 win 256
+
+// ESTABLISHED
+
+   +0 %{ assert tcpi_snd_cwnd == 10, tcpi_snd_cwnd }%
+ +.01 write(3, ..., 9000) = 9000
+   +0 > .      1: 1001(1000) ack 1
+   +0 > P.  1001: 2001(1000) ack 1
+   +0 > .   2001: 3001(1000) ack 1
+   +0 > P.  3001: 4001(1000) ack 1
+   +0 > .   4001: 5001(1000) ack 1
+   +0 > P.  5001: 6001(1000) ack 1
+   +0 > .   6001: 7001(1000) ack 1
+   +0 > P.  7001: 8001(1000) ack 1
+   +0 > P.  8001: 9001(1000) ack 1
+   +0 %{ assert tcpi_snd_cwnd == 10, tcpi_snd_cwnd }%
+  +.1 < .      1:    1(0)    ack  1001 win 49000
+   +0 %{ assert tcpi_snd_cwnd == 11, tcpi_snd_cwnd }%
+   +0 < .      1:    1(0)    ack  2001 win 49000
+   +0 < .      1:    1(0)    ack  3001 win 49000
+   +0 < .      1:    1(0)    ack  4001 win 49000
+   +0 < .      1:    1(0)    ack  5001 win 49000
+   +0 < .      1:    1(0)    ack  6001 win 49000
+   +0 < .      1:    1(0)    ack  7001 win 49000
+   +0 < .      1:    1(0)    ack  8001 win 49000
+   +0 < .      1:    1(0)    ack  9001 win 49000
+   +0 %{ assert tcpi_snd_cwnd == 18, tcpi_snd_cwnd }%
